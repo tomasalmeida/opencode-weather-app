@@ -8,12 +8,29 @@ const LINE = "═".repeat(40);
 
 type PrintFn = (line: string) => void;
 type AskFn = (question: string) => Promise<string>;
+type Color = "cyan" | "yellow" | "green" | "red";
+type ColorizeFn = (text: string, color: Color) => string;
+
+const ANSI_COLORS: Record<Color, string> = {
+  cyan: "\u001b[36m",
+  yellow: "\u001b[33m",
+  green: "\u001b[32m",
+  red: "\u001b[31m",
+};
+const ANSI_RESET = "\u001b[0m";
+
+function ansiColorize(text: string, color: Color): string {
+  return `${ANSI_COLORS[color]}${text}${ANSI_RESET}`;
+}
+
+const noColor: ColorizeFn = (text) => text;
 
 export type CliServices = {
   geocode: GeocodeFn;
   forecast: ForecastFn;
   ask?: AskFn;
   print?: PrintFn;
+  colorize?: ColorizeFn;
 };
 
 function errorMessage(err: unknown): string {
@@ -24,18 +41,18 @@ function cityId(latitude: number, longitude: number): string {
   return `${latitude},${longitude}`;
 }
 
-function printMenu(print: PrintFn, state: AppState): void {
-  print(LINE);
-  print("         WEATHER CLI");
-  print(LINE);
-  print("  1. Clima de ciudad default");
-  print(`  2. Clima de todas las ciudades (${state.cities.length})`);
-  print("  3. Buscar y agregar ciudad");
-  print("  4. Eliminar ciudad");
-  print("  5. Establecer ciudad default");
-  print(`  8. Ajustes (${state.unit === "C" ? "°C" : "°F"})`);
-  print("  9. Salir");
-  print(LINE);
+function printMenu(print: PrintFn, state: AppState, colorize: ColorizeFn): void {
+  print(colorize(LINE, "cyan"));
+  print(colorize("         WEATHER CLI", "cyan"));
+  print(colorize(LINE, "cyan"));
+  print(colorize("  1. Clima de ciudad default", "cyan"));
+  print(colorize(`  2. Clima de todas las ciudades (${state.cities.length})`, "cyan"));
+  print(colorize("  3. Buscar y agregar ciudad", "cyan"));
+  print(colorize("  4. Eliminar ciudad", "cyan"));
+  print(colorize("  5. Establecer ciudad default", "cyan"));
+  print(colorize(`  8. Ajustes (${state.unit === "C" ? "°C" : "°F"})`, "cyan"));
+  print(colorize("  9. Salir", "cyan"));
+  print(colorize(LINE, "cyan"));
 }
 
 function label(city: City): string {
@@ -53,35 +70,38 @@ async function printWeather(
   city: City,
   services: CliServices,
   print: PrintFn,
+  colorize: ColorizeFn,
 ): Promise<void> {
   const celsius = await services.forecast(city.latitude, city.longitude);
-  print(`  ${label(city)}: ${formatTemperature(celsius, state.unit)}`);
+  print(colorize(`  ${label(city)}: ${formatTemperature(celsius, state.unit)}`, "yellow"));
 }
 
 async function actionDefaultWeather(
   state: AppState,
   services: CliServices,
   print: PrintFn,
+  colorize: ColorizeFn,
 ): Promise<void> {
   const city = state.cities.find((c) => c.id === state.defaultCityId);
   if (city === undefined) {
-    print("  No hay ciudad default. Usa la opción 5 para establecer una.");
+    print(colorize("  No hay ciudad default. Usa la opción 5 para establecer una.", "red"));
     return;
   }
-  await printWeather(state, city, services, print);
+  await printWeather(state, city, services, print, colorize);
 }
 
 async function actionAllWeather(
   state: AppState,
   services: CliServices,
   print: PrintFn,
+  colorize: ColorizeFn,
 ): Promise<void> {
   if (state.cities.length === 0) {
-    print("  No hay ciudades guardadas. Usa la opción 3 para agregar una.");
+    print(colorize("  No hay ciudades guardadas. Usa la opción 3 para agregar una.", "red"));
     return;
   }
   for (const city of state.cities) {
-    await printWeather(state, city, services, print);
+    await printWeather(state, city, services, print, colorize);
   }
 }
 
@@ -90,21 +110,22 @@ async function actionAddCity(
   services: CliServices,
   ask: AskFn,
   print: PrintFn,
+  colorize: ColorizeFn,
   configPath: string,
 ): Promise<void> {
   const name = (await ask("  Nombre de la ciudad: ")).trim();
   if (name === "") {
-    print("  Debes ingresar un nombre.");
+    print(colorize("  Debes ingresar un nombre.", "red"));
     return;
   }
   const place: GeocodeResult | null = await services.geocode(name);
   if (place === null) {
-    print(`  No se encontró la ciudad "${name}".`);
+    print(colorize(`  No se encontró la ciudad "${name}".`, "red"));
     return;
   }
   const id = cityId(place.latitude, place.longitude);
   if (state.cities.some((c) => c.id === id)) {
-    print(`  "${place.name}" ya está guardada.`);
+    print(colorize(`  "${place.name}" ya está guardada.`, "red"));
     return;
   }
   const city: City =
@@ -121,68 +142,71 @@ async function actionAddCity(
   const becameDefault = state.defaultCityId === null;
   if (becameDefault) state.defaultCityId = id;
   saveState(configPath, state);
-  print(`  Ciudad agregada: ${label(city)}`);
-  if (becameDefault) print("  Ahora es la ciudad default.");
+  print(colorize(`  Ciudad agregada: ${label(city)}`, "green"));
+  if (becameDefault) print(colorize("  Ahora es la ciudad default.", "green"));
 }
 
 async function actionDeleteCity(
   state: AppState,
   ask: AskFn,
   print: PrintFn,
+  colorize: ColorizeFn,
 ): Promise<void> {
   if (state.cities.length === 0) {
-    print("  No hay ciudades guardadas.");
+    print(colorize("  No hay ciudades guardadas.", "red"));
     return;
   }
   listCities(state, print);
   const input = (await ask("  Número de la ciudad a eliminar: ")).trim();
   const index = Number(input) - 1;
   if (!Number.isInteger(index) || index < 0 || index >= state.cities.length) {
-    print("  Opción inválida.");
+    print(colorize("  Opción inválida.", "red"));
     return;
   }
   const removed = state.cities[index];
   if (removed === undefined) return;
   state.cities.splice(index, 1);
   if (state.defaultCityId === removed.id) state.defaultCityId = null;
-  print(`  Ciudad eliminada: ${label(removed)}`);
+  print(colorize(`  Ciudad eliminada: ${label(removed)}`, "green"));
 }
 
 async function actionSetDefault(
   state: AppState,
   ask: AskFn,
   print: PrintFn,
+  colorize: ColorizeFn,
 ): Promise<void> {
   if (state.cities.length === 0) {
-    print("  No hay ciudades guardadas. Usa la opción 3 para agregar una.");
+    print(colorize("  No hay ciudades guardadas. Usa la opción 3 para agregar una.", "red"));
     return;
   }
   listCities(state, print);
   const input = (await ask("  Número de la ciudad default: ")).trim();
   const index = Number(input) - 1;
   if (!Number.isInteger(index) || index < 0 || index >= state.cities.length) {
-    print("  Opción inválida.");
+    print(colorize("  Opción inválida.", "red"));
     return;
   }
   const city = state.cities[index];
   if (city === undefined) return;
   state.defaultCityId = city.id;
-  print(`  Ciudad default: ${label(city)}`);
+  print(colorize(`  Ciudad default: ${label(city)}`, "green"));
 }
 
 async function actionSettings(
   state: AppState,
   ask: AskFn,
   print: PrintFn,
+  colorize: ColorizeFn,
 ): Promise<void> {
   print(`  Unidad actual: °${state.unit}`);
   const input = (await ask("  Nueva unidad (C/F): ")).trim().toUpperCase();
   if (input !== "C" && input !== "F") {
-    print("  Opción inválida; se mantiene la unidad actual.");
+    print(colorize("  Opción inválida; se mantiene la unidad actual.", "red"));
     return;
   }
   state.unit = input;
-  print(`  Unidad guardada: °${state.unit}`);
+  print(colorize(`  Unidad guardada: °${state.unit}`, "green"));
 }
 
 // Lines are queued so piped/scripted input is not dropped between questions.
@@ -222,6 +246,7 @@ export async function runCli(
   services: CliServices,
 ): Promise<void> {
   const print: PrintFn = services.print ?? ((line) => console.log(line));
+  const colorize = services.colorize ?? (services.print === undefined && stdout.isTTY ? ansiColorize : noColor);
   const stdinAsk = services.ask === undefined ? createStdinAsk() : null;
   const ask: AskFn = services.ask ?? stdinAsk!.ask;
 
@@ -229,7 +254,7 @@ export async function runCli(
   try {
     state = loadState(configPath);
   } catch (err) {
-    print(`  Error: ${errorMessage(err)}`);
+    print(colorize(`  Error: ${errorMessage(err)}`, "red"));
     stdinAsk?.close();
     return;
   }
@@ -237,7 +262,7 @@ export async function runCli(
   try {
     for (;;) {
       print("");
-      printMenu(print, state);
+      printMenu(print, state, colorize);
       let choice: string;
       try {
         choice = (await ask("  Selecciona una opción: ")).trim();
@@ -247,27 +272,27 @@ export async function runCli(
 
       try {
         if (choice === "1") {
-          await actionDefaultWeather(state, services, print);
+          await actionDefaultWeather(state, services, print, colorize);
         } else if (choice === "2") {
-          await actionAllWeather(state, services, print);
+          await actionAllWeather(state, services, print, colorize);
         } else if (choice === "3") {
-          await actionAddCity(state, services, ask, print, configPath);
+          await actionAddCity(state, services, ask, print, colorize, configPath);
         } else if (choice === "4") {
-          await actionDeleteCity(state, ask, print);
+          await actionDeleteCity(state, ask, print, colorize);
           saveState(configPath, state);
         } else if (choice === "5") {
-          await actionSetDefault(state, ask, print);
+          await actionSetDefault(state, ask, print, colorize);
           saveState(configPath, state);
         } else if (choice === "8") {
-          await actionSettings(state, ask, print);
+          await actionSettings(state, ask, print, colorize);
           saveState(configPath, state);
         } else if (choice === "9") {
           break;
         } else {
-          print("  Opción inválida.");
+          print(colorize("  Opción inválida.", "red"));
         }
       } catch (err) {
-        print(`  Error: ${errorMessage(err)}`);
+        print(colorize(`  Error: ${errorMessage(err)}`, "red"));
       }
     }
   } finally {
