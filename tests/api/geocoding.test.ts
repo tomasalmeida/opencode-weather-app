@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { geocodeCity } from "./geocoding.ts";
-import type { FetchLike } from "./types.ts";
+import { geocodeCity } from "../../src/api/geocoding.ts";
+import type { FetchLike } from "../../src/types/FetchLike.ts";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

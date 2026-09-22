@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DEFAULT_STATE, loadState, parseState, saveState } from "./storage.ts";
+import { DEFAULT_STATE, loadState, parseState } from "../../src/storage/citiesStorage.ts";
+import { saveState } from "../../src/storage/settingsStorage.ts";
 
 function tempConfigPath(): { dir: string; path: string } {
   const dir = mkdtempSync(join(tmpdir(), "weather-cli-"));

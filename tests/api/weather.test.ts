@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { fetchDailyForecast, fetchForecast } from "./weather.ts";
-import type { FetchLike } from "./types.ts";
+import { fetchDailyForecast, fetchForecast } from "../../src/api/weather.ts";
+import type { FetchLike } from "../../src/types/FetchLike.ts";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });

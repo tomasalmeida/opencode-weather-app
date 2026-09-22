@@ -1,7 +1,7 @@
-import { configPath } from "./src/config.ts";
-import { geocodeCity } from "./src/geocoding.ts";
-import { fetchDailyForecast, fetchForecast } from "./src/weather.ts";
-import { runCli } from "./src/cli.ts";
+import { geocodeCity } from "./api/geocoding.ts";
+import { fetchDailyForecast, fetchForecast } from "./api/weather.ts";
+import { configPath } from "./utils/config.ts";
+import { runCli } from "./presentation/menu.ts";
 
 try {
   await runCli(configPath(), {

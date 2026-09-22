@@ -1,4 +1,5 @@
-import type { FetchLike, GeocodeResult } from "./types.ts";
+import type { FetchLike } from "../types/FetchLike.ts";
+import type { GeocodeResult } from "../types/Weather.ts";
 
 const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 
@@ -13,9 +14,7 @@ export async function geocodeCity(
   url.searchParams.set("format", "json");
 
   const res = await fetchImpl(url);
-  if (!res.ok) {
-    throw new Error(`Geocoding falló con estado ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Geocoding falló con estado ${res.status}`);
   const data: unknown = await res.json();
   if (typeof data !== "object" || data === null) return null;
   const results = (data as { results?: unknown }).results;
@@ -23,20 +22,15 @@ export async function geocodeCity(
 
   const first = results[0];
   if (typeof first !== "object" || first === null) return null;
-  const r = first as Record<string, unknown>;
-  const latitude = typeof r.latitude === "number" ? r.latitude : null;
-  const longitude = typeof r.longitude === "number" ? r.longitude : null;
-  const resultName = typeof r.name === "string" ? r.name : null;
+  const result = first as Record<string, unknown>;
+  const latitude = typeof result.latitude === "number" ? result.latitude : null;
+  const longitude = typeof result.longitude === "number" ? result.longitude : null;
+  const resultName = typeof result.name === "string" ? result.name : null;
   if (
-    latitude === null ||
-    longitude === null ||
-    resultName === null ||
-    !Number.isFinite(latitude) ||
-    !Number.isFinite(longitude)
-  ) {
-    return null;
-  }
-  const country = typeof r.country === "string" ? r.country : undefined;
+    latitude === null || longitude === null || resultName === null ||
+    !Number.isFinite(latitude) || !Number.isFinite(longitude)
+  ) return null;
+  const country = typeof result.country === "string" ? result.country : undefined;
   return country === undefined
     ? { name: resultName, latitude, longitude }
     : { name: resultName, country, latitude, longitude };

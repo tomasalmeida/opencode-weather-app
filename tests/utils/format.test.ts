@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { celsiusToFahrenheit, formatTemperature } from "./temperature.ts";
+import { celsiusToFahrenheit, formatTemperature } from "../../src/utils/format.ts";
 
 describe("celsiusToFahrenheit", () => {
   test("freezing point", () => {
