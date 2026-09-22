@@ -27,6 +27,17 @@ export type ForecastFn = (
   longitude: number,
 ) => Promise<number>;
 
+export type DailyForecast = {
+  date: string;
+  minimum: number;
+  maximum: number;
+};
+
+export type DailyForecastFn = (
+  latitude: number,
+  longitude: number,
+) => Promise<DailyForecast[]>;
+
 export type FetchLike = (
   input: string | URL | Request,
 ) => Promise<Response>;

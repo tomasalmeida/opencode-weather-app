@@ -7,3 +7,4 @@
 - [ ] **Binario:** compila bien; revisar que `./weather` guarde datos en `~/.config/weather-cli/`.
 - [ ] **Escalabilidad:** ¿qué tan fácil será expandir con nuevas funcionalidades?
 - [ ] **Carga:** ¿hay estado de carga en las tareas asíncronas?
+- [x] **Forecast de 7 días:** disponible para la ciudad default, con mínimas y máximas en °C o °F.

@@ -1,6 +1,14 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import type { AppState, City, GeocodeFn, ForecastFn, GeocodeResult } from "./types.ts";
+import type {
+  AppState,
+  City,
+  DailyForecast,
+  DailyForecastFn,
+  GeocodeFn,
+  ForecastFn,
+  GeocodeResult,
+} from "./types.ts";
 import { loadState, saveState } from "./storage.ts";
 import { formatTemperature } from "./temperature.ts";
 
@@ -28,6 +36,7 @@ const noColor: ColorizeFn = (text) => text;
 export type CliServices = {
   geocode: GeocodeFn;
   forecast: ForecastFn;
+  dailyForecast: DailyForecastFn;
   ask?: AskFn;
   print?: PrintFn;
   colorize?: ColorizeFn;
@@ -50,6 +59,7 @@ function printMenu(print: PrintFn, state: AppState, colorize: ColorizeFn): void 
   print(colorize("  3. Buscar y agregar ciudad", "cyan"));
   print(colorize("  4. Eliminar ciudad", "cyan"));
   print(colorize("  5. Establecer ciudad default", "cyan"));
+  print(colorize("  6. Pronóstico de 7 días", "cyan"));
   print(colorize(`  8. Ajustes (${state.unit === "C" ? "°C" : "°F"})`, "cyan"));
   print(colorize("  9. Salir", "cyan"));
   print(colorize(LINE, "cyan"));
@@ -102,6 +112,29 @@ async function actionAllWeather(
   }
   for (const city of state.cities) {
     await printWeather(state, city, services, print, colorize);
+  }
+}
+
+async function actionSevenDayForecast(
+  state: AppState,
+  services: CliServices,
+  print: PrintFn,
+  colorize: ColorizeFn,
+): Promise<void> {
+  const city = state.cities.find((c) => c.id === state.defaultCityId);
+  if (city === undefined) {
+    print(colorize("  No hay ciudad default. Usa la opción 5 para establecer una.", "red"));
+    return;
+  }
+  const forecast: DailyForecast[] = await services.dailyForecast(city.latitude, city.longitude);
+  print(colorize(`  Pronóstico de 7 días para ${label(city)}:`, "yellow"));
+  for (const day of forecast) {
+    print(
+      colorize(
+        `  ${day.date}: mínima ${formatTemperature(day.minimum, state.unit)}, máxima ${formatTemperature(day.maximum, state.unit)}`,
+        "yellow",
+      ),
+    );
   }
 }
 
@@ -283,6 +316,8 @@ export async function runCli(
         } else if (choice === "5") {
           await actionSetDefault(state, ask, print, colorize);
           saveState(configPath, state);
+        } else if (choice === "6") {
+          await actionSevenDayForecast(state, services, print, colorize);
         } else if (choice === "8") {
           await actionSettings(state, ask, print, colorize);
           saveState(configPath, state);
