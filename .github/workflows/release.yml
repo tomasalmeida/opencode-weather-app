@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify project
+        run: |
+          bun run typecheck
+          bun test
+
+      - name: Read package version
+        id: package
+        shell: bash
+        run: |
+          version=$(jq -r '.version // empty' package.json)
+          if [[ -z "$version" ]]; then
+            echo "package.json must contain a version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag does not exist
+        env:
+          TAG: ${{ steps.package.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists" >&2
+            exit 1
+          fi
+
+      - name: Build binary
+        run: |
+          bun run build
+          cp out/weather "weather-${{ steps.package.outputs.tag }}-linux-x64"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.package.outputs.tag }}
+        run: |
+          gh release create "$TAG" \
+            "weather-${TAG}-linux-x64" \
+            --title "$TAG" \
+            --generate-notes
