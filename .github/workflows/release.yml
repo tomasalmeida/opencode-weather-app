@@ -54,8 +54,9 @@ jobs:
 
       - name: Build binary
         run: |
-          bun run build
-          cp out/weather "weather-${{ steps.package.outputs.tag }}-linux-x64"
+          bun build src/index.ts --compile --target=bun-linux-x64 --outfile "weather-${{ steps.package.outputs.tag }}-linux-x64"
+          bun build src/index.ts --compile --target=bun-darwin-x64 --outfile "weather-${{ steps.package.outputs.tag }}-darwin-x64"
+          bun build src/index.ts --compile --target=bun-darwin-arm64 --outfile "weather-${{ steps.package.outputs.tag }}-darwin-arm64"
 
       - name: Create GitHub release
         env:
@@ -64,5 +65,7 @@ jobs:
         run: |
           gh release create "$TAG" \
             "weather-${TAG}-linux-x64" \
+            "weather-${TAG}-darwin-x64" \
+            "weather-${TAG}-darwin-arm64" \
             --title "$TAG" \
             --generate-notes
